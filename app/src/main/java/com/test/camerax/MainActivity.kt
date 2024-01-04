@@ -10,8 +10,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.test.camerax.extensions.getParcelableSafe
-import com.test.camerax.extensions.hasPermissions
-import com.test.camerax.extensions.requestRuntimePermissions
+import com.test.camerax.extensions.hasCameraAndAudioPermissions
+import com.test.camerax.extensions.requestCameraAndAudioRuntimePermissions
 import com.test.camerax.ui.screens.CameraScreen
 import com.test.camerax.ui.screens.PictureScreen
 import com.test.camerax.ui.theme.CameraXTheme
@@ -20,8 +20,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (!hasPermissions(CAMERA_PERMISSIONS)) {
-            requestRuntimePermissions(CAMERA_PERMISSIONS)
+        if (!hasCameraAndAudioPermissions()) {
+            requestCameraAndAudioRuntimePermissions()
         }
 
         setContent {
@@ -49,14 +49,5 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-
-
-    companion object {
-        val CAMERA_PERMISSIONS = arrayOf(
-            android.Manifest.permission.CAMERA,
-            android.Manifest.permission.RECORD_AUDIO
-        )
     }
 }

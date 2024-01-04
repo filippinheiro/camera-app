@@ -11,9 +11,8 @@ import androidx.camera.view.video.AudioConfig
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.test.camerax.MainActivity
 import com.test.camerax.exceptions.CameraException
-import com.test.camerax.extensions.hasPermissions
+import com.test.camerax.extensions.hasCameraAndAudioPermissions
 import com.test.camerax.extensions.takePhoto
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +43,7 @@ class CameraViewModel : ViewModel() {
 
     fun takePhoto(controller: LifecycleCameraController, context: Context) {
         viewModelScope.launch {
-            if (context.hasPermissions(MainActivity.CAMERA_PERMISSIONS)) {
+            if (context.hasCameraAndAudioPermissions()) {
                 val photo = controller.takePhoto(context)
                 _bitmaps.value = _bitmaps.value + photo
                 return@launch
@@ -86,7 +85,7 @@ class CameraViewModel : ViewModel() {
             return Result.success(Unit)
         }
 
-        if (!context.hasPermissions(MainActivity.CAMERA_PERMISSIONS)) {
+        if (!context.hasCameraAndAudioPermissions()) {
             return Result.failure(SecurityException("Camera permissions not granted"))
         }
 
