@@ -1,9 +1,9 @@
 package com.test.camerax.ui.screens
 
-import android.graphics.Bitmap
+import android.widget.Toast
 import androidx.camera.core.CameraSelector
+import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -16,50 +16,84 @@ import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.test.camerax.extensions.CollectedEffect
 import com.test.camerax.ui.components.CameraPreview
 import com.test.camerax.ui.components.GalleryBottomSheet
+import com.test.camerax.ui.viewmodels.CameraViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CameraScreen(
-    onTakePhotoClicked: () -> Unit,
-    onRecordVideoClicked: () -> Unit,
-    controller: LifecycleCameraController,
-    bitmaps: List<Bitmap>,
-    isRecording: Boolean
+    viewModel: CameraViewModel = viewModel()
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val scaffoldState = rememberBottomSheetScaffoldState()
+    val sheetState = rememberModalBottomSheetState()
+    var showBottomSheet by remember { mutableStateOf(false) }
 
+    val bitmaps by viewModel.bitmaps.collectAsState()
+    val isRecording by viewModel.isRecording.collectAsState()
+    val recordingError = viewModel.recordingError
+    val recordingSuccess = viewModel.recordingSuccess
 
-    BottomSheetScaffold(
-        scaffoldState = scaffoldState,
-        sheetPeekHeight = 0.dp,
-        sheetContent = {
-            GalleryBottomSheet(
-                bitmaps = bitmaps,
-                modifier = Modifier
-                    .fillMaxWidth()
+    val context = LocalContext.current
+    val controller = remember {
+        LifecycleCameraController(context).apply {
+            setEnabledUseCases(
+                CameraController.IMAGE_CAPTURE or
+                        CameraController.VIDEO_CAPTURE
             )
-        },
-    ) { padding ->
+        }
+    }
+
+    CollectedEffect(flow = recordingSuccess) {
+        Toast.makeText(
+            context,
+            "Video recorded successfully",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+
+    CollectedEffect(flow = recordingError) {
+        Toast.makeText(
+            context,
+            "Error while recording video: $it",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+
+    CollectedEffect(flow = viewModel.cameraPermissionError) {
+        Toast.makeText(
+            context,
+            "You need to grant camera permissions to take a photo",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+
+    Scaffold {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(it)
         ) {
             CameraPreview(
                 controller = controller,
@@ -104,7 +138,7 @@ internal fun CameraScreen(
                 IconButton(
                     onClick = {
                         coroutineScope.launch {
-                            scaffoldState.bottomSheetState.expand()
+                            showBottomSheet = true
                         }
                     },
                 ) {
@@ -114,19 +148,43 @@ internal fun CameraScreen(
                     )
                 }
 
-                IconButton(onClick = onTakePhotoClicked) {
+                IconButton(onClick = {
+                    viewModel.takePhoto(controller, context)
+                }) {
                     Icon(
                         imageVector = Icons.Default.PhotoCamera,
                         contentDescription = "Take Photo"
                     )
                 }
 
-                IconButton(onRecordVideoClicked) {
+                IconButton(onClick = {
+                    viewModel.recordVideo(controller, context)
+                }) {
                     Icon(
                         imageVector = Icons.Default.Videocam,
                         contentDescription = "Record Video"
                     )
                 }
+            }
+        }
+
+        if (showBottomSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    coroutineScope.launch {
+                        sheetState.hide()
+                    }.invokeOnCompletion {
+                        if (!sheetState.isVisible) showBottomSheet = false
+
+                    }
+                },
+                sheetState = sheetState,
+            ) {
+                GalleryBottomSheet(
+                    bitmaps = bitmaps,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                )
             }
         }
     }
